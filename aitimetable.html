@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduScheduler - Smart Classroom Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card-shadow { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+        .hover-lift { transition: transform 0.2s ease-in-out; }
+        .hover-lift:hover { transform: translateY(-2px); }
+        .notification-slide { animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        .progress-bar { animation: progress 3s ease-in-out; }
+        @keyframes progress { from { width: 0%; } to { width: 100%; } }
+        .pulse-dot { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .timetable-cell { min-height: 60px; border: 1px solid #e5e7eb; }
+        .occupied { background: linear-gradient(45deg, #ef4444, #dc2626); }
+        .free { background: linear-gradient(45deg, #10b981, #059669); }
+        .maintenance { background: linear-gradient(45deg, #f59e0b, #d97706); }
+        .restricted { opacity: 0.5; pointer-events: none; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b border-gray-200 fixed w-full top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 flex items-center">
+                        <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                            <span class="text-white font-bold text-sm">ES</span>
+                        </div>
+                        <span class="ml-2 text-xl font-semibold text-gray-900">EduScheduler</span>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="showNotifications()" class="p-2 text-gray-400 hover:text-gray-600 relative">
+                        <i class="fa-solid fa-bell text-xl"></i>
+                        <span id="notificationBadge" class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full pulse-dot flex items-center justify-center">
+                            <span class="text-white text-xs font-bold">3</span>
+                        </span>
+                    </button>
+                    <button id="voiceBtn" class="p-2 text-gray-400 hover:text-blue-600 transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+                        </svg>
+                    </button>
+                    <div class="flex items-center space-x-2">
+                        <div class="w-8 h-8 bg-gray-300 rounded-full"></div>
+                        <span class="text-sm font-medium text-gray-700" id="currentUser">Guest User</span>
+                        <button onclick="logout()" class="text-sm text-red-600 hover:text-red-800 ml-2">Logout</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="flex h-screen pt-16">
+        <!-- Sidebar -->
+        <div class="w-64 bg-white shadow-sm border-r border-gray-200 fixed h-full overflow-y-auto">
+            <div class="p-4">
+                <div class="space-y-2" id="sidebarMenu">
+                    <button onclick="showView('login')" class="w-full text-left px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors">
+                        🏠 Login Page
+                    </button>
+                    <!-- Role-specific menu items will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 ml-64 overflow-y-auto">
+            <!-- Login Page -->
+            <div id="loginView" class="min-h-screen gradient-bg flex items-center justify-center p-4">
+                <div class="max-w-md w-full">
+                    <div class="bg-white rounded-2xl shadow-2xl p-8">
+                        <div class="text-center mb-8">
+                            <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <span class="text-white font-bold text-2xl">ES</span>
+                            </div>
+                            <h2 class="text-3xl font-bold text-gray-900">EduScheduler</h2>
+                            <p class="text-gray-600 mt-2">Smart Classroom Management</p>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div class="grid grid-cols-3 gap-3">
+                                <button onclick="loginAs('admin')" class="p-4 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all text-center">
+                                    <div class="text-2xl mb-2">👨‍💼</div>
+                                    <div class="text-sm font-medium">Admin</div>
+                                </button>
+                                <button onclick="loginAs('faculty')" class="p-4 border-2 border-gray-200 rounded-xl hover:border-green-500 hover:bg-green-50 transition-all text-center">
+                                    <div class="text-2xl mb-2">👨‍🏫</div>
+                                    <div class="text-sm font-medium">Faculty</div>
+                                </button>
+                                <button onclick="loginAs('student')" class="p-4 border-2 border-gray-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all text-center">
+                                    <div class="text-2xl mb-2">🎓</div>
+                                    <div class="text-sm font-medium">Student</div>
+                                </button>
+                            </div>
+
+                            <div class="relative">
+                                <div class="absolute inset-0 flex items-center">
+                                    <div class="w-full border-t border-gray-300"></div>
+                                </div>
+                                <div class="relative flex justify-center text-sm">
+                                    <span class="px-2 bg-white text-gray-500">Or continue with</span>
+                                </div>
+                            </div>
+
+                            <button class="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-xl shadow-sm hover:bg-gray-50 transition-colors">
+                                <svg class="w-5 h-5 mr-3" viewBox="0 0 24 24">
+                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                </svg>
+                                Sign in with Google
+                            </button>
+
+                            <button class="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-xl shadow-sm hover:bg-gray-50 transition-colors">
+                                <svg class="w-5 h-5 mr-3" fill="#00BCF2" viewBox="0 0 24 24">
+                                    <path d="M24 12c0-6.627-5.373-12-12-12S0 5.373 0 12c0 5.99 4.388 10.954 10.125 11.854V15.47H7.078V12h3.047V9.356c0-3.007 1.792-4.668 4.533-4.668 1.312 0 2.686.234 2.686.234v2.953H15.83c-1.491 0-1.956.925-1.956 1.874V12h3.328l-.532 3.469h-2.796v8.385C19.612 22.954 24 17.99 24 12z"/>
+                                </svg>
+                                Sign in with Microsoft
+                            </button>
+                        </div>
+
+                        <div class="mt-6 text-center">
+                            <p class="text-xs text-gray-500">
+                                By signing in, you agree to our Terms of Service and Privacy Policy
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Access Denied Page -->
+            <div id="accessDeniedView" class="min-h-screen flex items-center justify-center p-4 hidden">
+                <div class="max-w-md w-full text-center">
+                    <div class="bg-white rounded-2xl shadow-2xl p-8">
+                        <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                            </svg>
+                        </div>
+                        <h2 class="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
+                        <p class="text-gray-600 mb-6">You don't have permission to access this section. Please login with appropriate credentials.</p>
+                        <button onclick="showView('login')" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+                            Back to Login
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Dashboard -->
+            <div id="dashboardView" class="p-6 hidden">
+                <div class="mb-6">
+                    <h1 class="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+                    <p class="text-gray-600">Manage your smart classroom ecosystem</p>
+                </div>
+
+                <!-- Summary Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white rounded-xl p-6 card-shadow hover-lift">
+                        <div class="flex items-center">
+                            <div class="p-3 bg-green-100 rounded-lg">
+                                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-600">Conflicts Resolved</p>
+                                <p class="text-2xl font-semibold text-gray-900">24</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl p-6 card-shadow hover-lift">
+                        <div class="flex items-center">
+                            <div class="p-3 bg-blue-100 rounded-lg">
+                                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-600">Rooms Optimized</p>
+                                <p class="text-2xl font-semibold text-gray-900">18</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl p-6 card-shadow hover-lift">
+                        <div class="flex items-center">
+                            <div class="p-3 bg-yellow-100 rounded-lg">
+                                <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-600">Pending Approvals</p>
+                                <p class="text-2xl font-semibold text-gray-900">7</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl p-6 card-shadow hover-lift">
+                        <div class="flex items-center">
+                            <div class="p-3 bg-purple-100 rounded-lg">
+                                <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-600">AI Efficiency</p>
+                                <p class="text-2xl font-semibold text-gray-900">94%</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timetable Generation -->
+                <div class="bg-white rounded-xl p-6 card-shadow mb-8">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl font-semibold text-gray-900">AI Timetable Generator</h2>
+                        <button onclick="generateTimetable()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors">
+                            Generate Timetable
+                        </button>
+                    </div>
+                    <div id="progressContainer" class="hidden mb-4">
+                        <div class="flex items-center justify-between text-sm text-gray-600 mb-2">
+                            <span id="progressText">Analyzing constraints...</span>
+                            <span id="progressPercent">0%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div id="progressBar" class="bg-blue-600 h-2 rounded-full progress-bar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-7 gap-2 text-center text-sm">
+                        <div class="font-medium text-gray-700 p-2">Time</div>
+                        <div class="font-medium text-gray-700 p-2">Monday</div>
+                        <div class="font-medium text-gray-700 p-2">Tuesday</div>
+                        <div class="font-medium text-gray-700 p-2">Wednesday</div>
+                        <div class="font-medium text-gray-700 p-2">Thursday</div>
+                        <div class="font-medium text-gray-700 p-2">Friday</div>
+                        <div class="font-medium text-gray-700 p-2">Saturday</div>
+                        
+                        <div class="p-2 text-gray-600">9:00 AM</div>
+                        <div class="timetable-cell bg-blue-100 p-2 rounded text-blue-800 font-medium">Math 101<br><small>Room A1</small></div>
+                        <div class="timetable-cell bg-green-100 p-2 rounded text-green-800 font-medium">Physics<br><small>Lab B2</small></div>
+                        <div class="timetable-cell bg-purple-100 p-2 rounded text-purple-800 font-medium">Chemistry<br><small>Room C3</small></div>
+                        <div class="timetable-cell bg-yellow-100 p-2 rounded text-yellow-800 font-medium">Biology<br><small>Lab D1</small></div>
+                        <div class="timetable-cell bg-pink-100 p-2 rounded text-pink-800 font-medium">English<br><small>Room E2</small></div>
+                        <div class="timetable-cell bg-gray-100 p-2 rounded text-gray-600">Free</div>
+                        
+                        <div class="p-2 text-gray-600">10:00 AM</div>
+                        <div class="timetable-cell bg-green-100 p-2 rounded text-green-800 font-medium">Physics<br><small>Lab B2</small></div>
+                        <div class="timetable-cell bg-blue-100 p-2 rounded text-blue-800 font-medium">Math 102<br><small>Room A2</small></div>
+                        <div class="timetable-cell bg-yellow-100 p-2 rounded text-yellow-800 font-medium">Biology<br><small>Lab D1</small></div>
+                        <div class="timetable-cell bg-purple-100 p-2 rounded text-purple-800 font-medium">Chemistry<br><small>Room C3</small></div>
+                        <div class="timetable-cell bg-gray-100 p-2 rounded text-gray-600">Free</div>
+                        <div class="timetable-cell bg-pink-100 p-2 rounded text-pink-800 font-medium">English<br><small>Room E2</small></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Faculty View -->
+            <div id="facultyView" class="p-6 hidden">
+                <div class="mb-6">
+                    <h1 class="text-3xl font-bold text-gray-900">Faculty Dashboard</h1>
+                    <p class="text-gray-600">Welcome back, Dr. Smith</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Weekly Schedule -->
+                    <div class="lg:col-span-2 bg-white rounded-xl p-6 card-shadow">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-xl font-semibold text-gray-900">This Week's Schedule</h2>
+                            <button onclick="requestSwap()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                Request Swap
+                            </button>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="flex items-center p-3 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                                <div class="flex-1">
+                                    <div class="font-medium text-blue-900">Advanced Mathematics</div>
+                                    <div class="text-sm text-blue-700">Monday, 9:00 AM - 10:30 AM • Room A-101</div>
+                                </div>
+                                <div class="text-blue-600">📊</div>
+                            </div>
+                            <div class="flex items-center p-3 bg-green-50 rounded-lg border-l-4 border-green-500">
+                                <div class="flex-1">
+                                    <div class="font-medium text-green-900">Calculus II</div>
+                                    <div class="text-sm text-green-700">Tuesday, 2:00 PM - 3:30 PM • Room B-205</div>
+                                </div>
+                                <div class="text-green-600">📐</div>
+                            </div>
+                            <div class="flex items-center p-3 bg-purple-50 rounded-lg border-l-4 border-purple-500">
+                                <div class="flex-1">
+                                    <div class="font-medium text-purple-900">Statistics</div>
+                                    <div class="text-sm text-purple-700">Wednesday, 11:00 AM - 12:30 PM • Room C-301</div>
+                                </div>
+                                <div class="text-purple-600">📈</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Notifications & Actions -->
+                    <div class="space-y-6">
+                        <div class="bg-white rounded-xl p-6 card-shadow">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+                            <div class="space-y-3">
+                                <button onclick="markUnavailable()" class="w-full bg-yellow-100 hover:bg-yellow-200 text-yellow-800 p-3 rounded-lg text-left transition-colors">
+                                    <div class="font-medium">Mark Unavailable</div>
+                                    <div class="text-sm">Set time slots when you're not available</div>
+                                </button>
+                                <button class="w-full bg-blue-100 hover:bg-blue-200 text-blue-800 p-3 rounded-lg text-left transition-colors">
+                                    <div class="font-medium">View Attendance</div>
+                                    <div class="text-sm">Check student attendance records</div>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-xl p-6 card-shadow">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Notifications</h3>
+                            <div class="space-y-3">
+                                <div class="p-3 bg-green-50 rounded-lg border-l-4 border-green-400">
+                                    <div class="text-sm font-medium text-green-800">Schedule Updated</div>
+                                    <div class="text-xs text-green-600">Your Tuesday class moved to Room B-207</div>
+                                </div>
+                                <div class="p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400">
+                                    <div class="text-sm font-medium text-blue-800">Swap Request</div>
+                                    <div class="text-xs text-blue-600">Dr. Johnson wants to swap Wednesday slots</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Student View -->
+            <div id="studentView" class="p-6 hidden">
+                <div class="mb-6">
+                    <h1 class="text-3xl font-bold text-gray-900">Student Portal</h1>
+                    <p class="text-gray-600">Hello, Alex Johnson - Computer Science</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Today's Schedule -->
+                    <div class="lg:col-span-2 bg-white rounded-xl p-6 card-shadow">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-xl font-semibold text-gray-900">Today's Classes</h2>
+                            <div class="flex space-x-2">
+                                <button onclick="syncCalendar()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                    📅 Sync Calendar
+                                </button>
+                                <button class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                    📥 Download ICS
+                                </button>
+                            </div>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="flex items-center p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl border border-blue-200">
+                                <div class="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white text-xl mr-4">
+                                    💻
+                                </div>
+                                <div class="flex-1">
+                                    <div class="font-semibold text-blue-900">Data Structures</div>
+                                    <div class="text-sm text-blue-700">9:00 AM - 10:30 AM • Room CS-101</div>
+                                    <div class="text-xs text-blue-600">Prof. Anderson</div>
+                                </div>
+                                <div class="text-blue-600 font-medium">Next</div>
+                            </div>
+
+                            <div class="flex items-center p-4 bg-gradient-to-r from-green-50 to-green-100 rounded-xl border border-green-200">
+                                <div class="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center text-white text-xl mr-4">
+                                    🧮
+                                </div>
+                                <div class="flex-1">
+                                    <div class="font-semibold text-green-900">Algorithms</div>
+                                    <div class="text-sm text-green-700">11:00 AM - 12:30 PM • Room CS-205</div>
+                                    <div class="text-xs text-green-600">Dr. Wilson</div>
+                                </div>
+                                <div class="text-green-600 font-medium">Later</div>
+                            </div>
+
+                            <div class="flex items-center p-4 bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl border border-purple-200">
+                                <div class="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center text-white text-xl mr-4">
+                                    🗄
+                                </div>
+                                <div class="flex-1">
+                                    <div class="font-semibold text-purple-900">Database Systems</div>
+                                    <div class="text-sm text-purple-700">2:00 PM - 3:30 PM • Lab CS-301</div>
+                                    <div class="text-xs text-purple-600">Prof. Davis</div>
+                                </div>
+                                <div class="text-purple-600 font-medium">Today</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Alerts & Quick Info -->
+                    <div class="space-y-6">
+                        <div class="bg-white rounded-xl p-6 card-shadow">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">🚨 Alerts</h3>
+                            <div class="space-y-3">
+                                <div class="p-3 bg-red-50 rounded-lg border-l-4 border-red-400">
+                                    <div class="text-sm font-medium text-red-800">Class Cancelled</div>
+                                    <div class="text-xs text-red-600">Physics Lab - Tomorrow 2PM</div>
+                                </div>
+                                <div class="p-3 bg-yellow-50 rounded-lg border-l-4 border-yellow-400">
+                                    <div class="text-sm font-medium text-yellow-800">Room Changed</div>
+                                    <div class="text-xs text-yellow-600">Math class moved to Room B-105</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-xl p-6 card-shadow">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">📊 This Week</h3>
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Classes Attended</span>
+                                    <span class="font-semibold text-green-600">12/14</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Assignments Due</span>
+                                    <span class="font-semibold text-orange-600">3</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Attendance Rate</span>
+                                    <span class="font-semibold text-blue-600">86%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl p-6 text-white">
+                            <h3 class="text-lg font-semibold mb-2">📱 Mobile App</h3>
+                            <p class="text-sm text-blue-100 mb-4">Get notifications on your phone</p>
+                            <button class="bg-white text-blue-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-50 transition-colors">
+                                Download App
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- IoT & Attendance Panel -->
+            <div id="iotView" class="p-6 hidden">
+                <div class="mb-6">
+                    <h1 class="text-3xl font-bold text-gray-900">IoT & Attendance Control</h1>
+                    <p class="text-gray-600">Real-time classroom monitoring and control</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <!-- Room Status -->
+                    <div class="bg-white rounded-xl p-6 card-shadow">
+                        <h2 class="text-xl font-semibold text-gray-900 mb-4">🏢 Live Room Status</h2>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="p-4 rounded-lg free text-white text-center">
+                                <div class="font-semibold">Room A-101</div>
+                                <div class="text-sm">Available</div>
+                                <div class="text-xs mt-1">Next: 2:00 PM</div>
+                            </div>
+                            <div class="p-4 rounded-lg occupied text-white text-center">
+                                <div class="font-semibold">Room B-205</div>
+                                <div class="text-sm">Occupied</div>
+                                <div class="text-xs mt-1">Until: 3:30 PM</div>
+                            </div>
+                            <div class="p-4 rounded-lg maintenance text-white text-center">
+                                <div class="font-semibold">Lab C-301</div>
+                                <div class="text-sm">Maintenance</div>
+                                <div class="text-xs mt-1">Back: Tomorrow</div>
+                            </div>
+                            <div class="p-4 rounded-lg free text-white text-center">
+                                <div class="font-semibold">Room D-102</div>
+                                <div class="text-sm">Available</div>
+                                <div class="text-xs mt-1">All day</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- IoT Controls -->
+                    <div class="bg-white rounded-xl p-6 card-shadow">
+                        <h2 class="text-xl font-semibold text-gray-900 mb-4">🎛 Remote Controls</h2>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                <div class="flex items-center">
+                                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                                        ❄
+                                    </div>
+                                    <div>
+                                        <div class="font-medium">AC - Room A-101</div>
+                                        <div class="text-sm text-gray-600">Temperature: 22°C</div>
+                                    </div>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" class="sr-only peer" checked onchange="toggleDevice(this, 'AC')">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                </label>
+                            </div>
+
+                            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                <div class="flex items-center">
+                                    <div class="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center mr-3">
+                                        💡
+                                    </div>
+                                    <div>
+                                        <div class="font-medium">Lights - Room B-205</div>
+                                        <div class="text-sm text-gray-600">Brightness: 80%</div>
+                                    </div>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" class="sr-only peer" onchange="toggleDevice(this, 'Lights')">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                </label>
+                            </div>
+
+                            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                <div class="flex items-center">
+                                    <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                                        📽
+                                    </div>
+                                    <div>
+                                        <div class="font-medium">Projector - Lab C-301</div>
+                                        <div class="text-sm text-gray-600">Status: Ready</div>
+                                    </div>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" class="sr-only peer" checked onchange="toggleDevice(this, 'Projector')">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Attendance System -->
+                <div class="bg-white rounded-xl p-6 card-shadow">
+                    <h2 class="text-xl font-semibold text-gray-900 mb-4">👥 Smart Attendance System</h2>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div>
+                            <h3 class="font-medium text-gray-900 mb-3">Live Face Detection</h3>
+                            <div class="bg-gray-100 rounded-lg p-4 text-center">
+                                <div class="w-32 h-24 bg-gray-300 rounded-lg mx-auto mb-3 flex items-center justify-center">
+                                    <span class="text-gray-600">📷 Camera Feed</span>
+                                </div>
+                                <div class="text-sm text-gray-600">Detecting faces: 23/25 students</div>
+                                <button onclick="markAttendance()" class="mt-3 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                    Mark Attendance
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="font-medium text-gray-900 mb-3">Today's Attendance</h3>
+                            <div class="space-y-2">
+                                <div class="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                                    <div class="flex items-center">
+                                        <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-sm mr-3">
+                                            ✓
+                                        </div>
+                                        <span class="font-medium text-green-900">Data Structures - 9:00 AM</span>
+                                    </div>
+                                    <span class="text-green-600 font-medium">23/25</span>
+                                </div>
+                                <div class="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                                    <div class="flex items-center">
+                                        <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm mr-3">
+                                            ⏱
+                                        </div>
+                                        <span class="font-medium text-blue-900">Algorithms - 11:00 AM</span>
+                                    </div>
+                                    <span class="text-blue-600 font-medium">In Progress</span>
+                                </div>
+                                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <div class="flex items-center">
+                                        <div class="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center text-white text-sm mr-3">
+                                            ⏰
+                                        </div>
+                                        <span class="font-medium text-gray-700">Database Systems - 2:00 PM</span>
+                                    </div>
+                                    <span class="text-gray-500 font-medium">Upcoming</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics Dashboard -->
+            <div id="analyticsView" class="p-6 hidden">
+                <div class="mb-6">
+                    <h1 class="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
+                    <p class="text-gray-600">Insights and predictions for better scheduling</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <!-- Room Usage Heatmap -->
+                    <div class="bg-white rounded-xl p-6 card-shadow">
+                        <h2 class="text-xl font-semibold text-gray-900 mb-4">🔥 Room Usage Heatmap</h2>
+                        <canvas id="heatmapChart" width="400" height="200"></canvas>
+                    </div>
+
+                    <!-- Teacher Workload -->
+                    <div class="bg-white rounded-xl p-6 card-shadow">
+                        <h2 class="text-xl font-semibold text-gray-900 mb-4">📊 Faculty Workload</h2>
+                        <canvas id="workloadChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+
+                <!-- Predictive Analytics -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-6 text-white">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold">🔮 Predictions</h3>
+                            <div class="w-8 h-8 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+                                <span class="text-sm">AI</span>
+                            </div>
+                        </div>
+                        <div class="space-y-3">
+                            <div>
+                                <div class="text-sm text-blue-100">High Demand Course</div>
+                                <div class="font-semibold">Machine Learning</div>
+                                <div class="text-xs text-blue-200">Expected 40% increase</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-6 text-white">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold">⚡ Efficiency</h3>
+                            <div class="w-8 h-8 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+                                <span class="text-sm">94%</span>
+                            </div>
+                        </div>
+                        <div class="space-y-3">
+                            <div>
+                                <div class="text-sm text-green-100">Room Utilization</div>
+                                <div class="font-semibold">Optimal</div>
+                                <div class="text-xs text-green-200">+12% from last month</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-6 text-white">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold">📈 Trends</h3>
+                            <div class="w-8 h-8 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+                                <span class="text-sm">↗</span>
+                            </div>
+                        </div>
+                        <div class="space-y-3">
+                            <div>
+                                <div class="text-sm text-purple-100">Peak Hours</div>
+                                <div class="font-semibold">10 AM - 2 PM</div>
+                                <div class="text-xs text-purple-200">85% occupancy</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="notification" class="fixed top-20 right-4 bg-white border border-gray-200 rounded-lg shadow-lg p-4 hidden notification-slide z-50">
+        <div class="flex items-center">
+            <div class="flex-shrink-0">
+                <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm font-medium text-gray-900" id="notificationTitle">Success!</p>
+                <p class="text-sm text-gray-500" id="notificationMessage">Action completed successfully.</p>
+            </div>
+            <button onclick="hideNotification()" class="ml-4 text-gray-400 hover:text-gray-600">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Notifications Panel -->
+    <div id="notificationsPanel" class="fixed top-16 right-4 w-80 bg-white border border-gray-200 rounded-lg shadow-xl p-4 hidden z-50">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Notifications</h3>
+            <button onclick="hideNotificationsPanel()" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <div class="space-y-3" id="notificationsList">
+            <div class="p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400">
+                <div class="text-sm font-medium text-blue-800">Schedule Update</div>
+                <div class="text-xs text-blue-600">Room B-205 changed to B-207 for Tuesday class</div>
+                <div class="text-xs text-gray-500 mt-1">2 hours ago</div>
+            </div>
+            <div class="p-3 bg-yellow-50 rounded-lg border-l-4 border-yellow-400">
+                <div class="text-sm font-medium text-yellow-800">Swap Request</div>
+                <div class="text-xs text-yellow-600">Dr. Johnson wants to swap Wednesday slots</div>
+                <div class="text-xs text-gray-500 mt-1">4 hours ago</div>
+            </div>
+            <div class="p-3 bg-green-50 rounded-lg border-l-4 border-green-400">
+                <div class="text-sm font-medium text-green-800">System Update</div>
+                <div class="text-xs text-green-600">IoT devices successfully updated</div>
+                <div class="text-xs text-gray-500 mt-1">1 day ago</div>
+            </div>
+        </div>
+        <button onclick="clearNotifications()" class="w-full mt-4 text-sm text-gray-600 hover:text-gray-800 py-2 border-t border-gray-200">
+            Mark all as read
+        </button>
+    </div>
+
+    <script>
+        let currentUserRole = null;
+        let notificationCount = 3;
+
+        // Role-based access control
+        const rolePermissions = {
+            admin: ['dashboard', 'faculty', 'student', 'iot', 'analytics'],
+            faculty: ['faculty'],
+            student: ['student']
+        };
+
+        // View Management with Access Control
+        function showView(viewName) {
+            // Check if user has permission to access this view
+            if (currentUserRole && !rolePermissions[currentUserRole].includes(viewName) && viewName !== 'login') {
+                showView('accessDenied');
+                return;
+            }
+
+            const views = ['loginView', 'dashboardView', 'facultyView', 'studentView', 'iotView', 'analyticsView', 'accessDeniedView'];
+            views.forEach(view => {
+                document.getElementById(view).classList.add('hidden');
+            });
+            document.getElementById(viewName + 'View').classList.remove('hidden');
+            
+            // Update sidebar based on role
+            updateSidebar();
+            
+            // Initialize charts for analytics view
+            if (viewName === 'analytics') {
+                setTimeout(initCharts, 100);
+            }
+        }
+
+        // Update sidebar based on user role
+        function updateSidebar() {
+            const sidebarMenu = document.getElementById('sidebarMenu');
+            const loginButton = `<button onclick="showView('login')" class="w-full text-left px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors">
+                🏠 Login Page
+            </button>`;
+
+            if (!currentUserRole) {
+                sidebarMenu.innerHTML = loginButton;
+                return;
+            }
+
+            let menuItems = loginButton;
+            
+            if (rolePermissions[currentUserRole].includes('dashboard')) {
+                menuItems += `<button onclick="showView('dashboard')" class="w-full text-left px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors">
+                    📊 Admin Dashboard
+                </button>`;
+            }
+            
+            if (rolePermissions[currentUserRole].includes('faculty')) {
+                menuItems += `<button onclick="showView('faculty')" class="w-full text-left px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors">
+                    👨‍🏫 Faculty View
+                </button>`;
+            }
+            
+            if (rolePermissions[currentUserRole].includes('student')) {
+                menuItems += `<button onclick="showView('student')" class="w-full text-left px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors">
+                    🎓 Student View
+                </button>`;
+            }
+            
+            if (rolePermissions[currentUserRole].includes('iot')) {
+                menuItems += `<button onclick="showView('iot')" class="w-full text-left px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors">
+                    🏢 IoT & Attendance
+                </button>`;
+            }
+            
+            if (rolePermissions[currentUserRole].includes('analytics')) {
+                menuItems += `<button onclick="showView('analytics')" class="w-full text-left px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors">
+                    📈 Analytics
+                </button>`;
+            }
+
+            sidebarMenu.innerHTML = menuItems;
+        }
+
+        // Login Functions
+        function loginAs(role) {
+            currentUserRole = role;
+            const userSpan = document.getElementById('currentUser');
+            
+            switch(role) {
+                case 'admin':
+                    userSpan.textContent = 'Admin User';
+                    showNotification('Login Successful', 'Welcome Admin! You have full access to all features.');
+                    setTimeout(() => showView('dashboard'), 1000);
+                    break;
+                case 'faculty':
+                    userSpan.textContent = 'Dr. Smith';
+                    showNotification('Login Successful', 'Welcome Dr. Smith! Access to faculty features only.');
+                    setTimeout(() => showView('faculty'), 1000);
+                    break;
+                case 'student':
+                    userSpan.textContent = 'Alex Johnson';
+                    showNotification('Login Successful', 'Welcome Alex! Student portal access granted.');
+                    setTimeout(() => showView('student'), 1000);
+                    break;
+            }
+        }
+
+        // Logout Function
+        function logout() {
+            currentUserRole = null;
+            document.getElementById('currentUser').textContent = 'Guest User';
+            showNotification('Logged Out', 'You have been successfully logged out.');
+            showView('login');
+        }
+
+        // Notifications Management
+        function showNotifications() {
+            const panel = document.getElementById('notificationsPanel');
+            panel.classList.toggle('hidden');
+        }
+
+        function hideNotificationsPanel() {
+            document.getElementById('notificationsPanel').classList.add('hidden');
+        }
+
+        function clearNotifications() {
+            notificationCount = 0;
+            document.getElementById('notificationBadge').style.display = 'none';
+            showNotification('Notifications Cleared', 'All notifications marked as read');
+            hideNotificationsPanel();
+        }
+
+        // Timetable Generation
+        function generateTimetable() {
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const progressPercent = document.getElementById('progressPercent');
+            
+            progressContainer.classList.remove('hidden');
+            
+            const steps = [
+                { text: 'Analyzing constraints...', percent: 20 },
+                { text: 'Optimizing room allocation...', percent: 40 },
+                { text: 'Resolving conflicts...', percent: 60 },
+                { text: 'Applying AI recommendations...', percent: 80 },
+                { text: 'Finalizing schedule...', percent: 100 }
+            ];
+            
+            let currentStep = 0;
+            const interval = setInterval(() => {
+                if (currentStep < steps.length) {
+                    progressText.textContent = steps[currentStep].text;
+                    progressPercent.textContent = steps[currentStep].percent + '%';
+                    progressBar.style.width = steps[currentStep].percent + '%';
+                    currentStep++;
+                } else {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        progressContainer.classList.add('hidden');
+                        showNotification('Timetable Generated', 'AI-optimized schedule created successfully!');
+                    }, 500);
+                }
+            }, 800);
+        }
+
+        // Faculty Functions
+        function requestSwap() {
+            showNotification('Swap Request Sent', 'Your request has been sent to the admin for approval');
+        }
+
+        function markUnavailable() {
+            showNotification('Availability Updated', 'Your unavailable time slots have been marked');
+        }
+
+        // Student Functions
+        function syncCalendar() {
+            showNotification('Calendar Synced', 'Your schedule has been synced with Google Calendar');
+        }
+
+        // IoT Functions
+        function toggleDevice(toggle, deviceType) {
+            const status = toggle.checked ? 'ON' : 'OFF';
+            showNotification(`${deviceType} ${status}`, `Device has been turned ${status.toLowerCase()}`);
+        }
+
+        function markAttendance() {
+            showNotification('Attendance Marked', 'Attendance has been recorded for 23 students');
+        }
+
+        // Voice Assistant
+        document.getElementById('voiceBtn').addEventListener('click', function() {
+            this.classList.add('text-blue-600');
+            showNotification('Voice Assistant', 'Listening... Try saying "Show me today\'s schedule"');
+            setTimeout(() => {
+                this.classList.remove('text-blue-600');
+            }, 3000);
+        });
+
+        // Notification System
+        function showNotification(title, message) {
+            document.getElementById('notificationTitle').textContent = title;
+            document.getElementById('notificationMessage').textContent = message;
+            document.getElementById('notification').classList.remove('hidden');
+            setTimeout(hideNotification, 4000);
+        }
+
+        function hideNotification() {
+            document.getElementById('notification').classList.add('hidden');
+        }
+
+        // Charts Initialization
+        function initCharts() {
+            // Room Usage Heatmap
+            const heatmapCtx = document.getElementById('heatmapChart').getContext('2d');
+            new Chart(heatmapCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Room A-101', 'Room B-205', 'Lab C-301', 'Room D-102', 'Lab E-203'],
+                    datasets: [{
+                        label: 'Usage Hours',
+                        data: [8, 6, 9, 4, 7],
+                        backgroundColor: [
+                            'rgba(59, 130, 246, 0.8)',
+                            'rgba(16, 185, 129, 0.8)',
+                            'rgba(245, 158, 11, 0.8)',
+                            'rgba(139, 92, 246, 0.8)',
+                            'rgba(236, 72, 153, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgb(59, 130, 246)',
+                            'rgb(16, 185, 129)',
+                            'rgb(245, 158, 11)',
+                            'rgb(139, 92, 246)',
+                            'rgb(236, 72, 153)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 10
+                        }
+                    }
+                }
+            });
+
+            // Faculty Workload Chart
+            const workloadCtx = document.getElementById('workloadChart').getContext('2d');
+            new Chart(workloadCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Dr. Smith', 'Prof. Johnson', 'Dr. Wilson', 'Prof. Davis', 'Dr. Anderson'],
+                    datasets: [{
+                        data: [20, 15, 18, 12, 16],
+                        backgroundColor: [
+                            'rgba(59, 130, 246, 0.8)',
+                            'rgba(16, 185, 129, 0.8)',
+                            'rgba(245, 158, 11, 0.8)',
+                            'rgba(139, 92, 246, 0.8)',
+                            'rgba(236, 72, 153, 0.8)'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize with login view
+        showView('login');
+        updateSidebar();
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'981a0bc741153b0a',t:'MTc1ODI5NTAwNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
